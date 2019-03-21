@@ -98,7 +98,7 @@ def optimize_combined_images(img1, warped_img, p1, p2, stitched_img):  # p: [[x_
 
 if __name__ == "__main__":
     # read source picture
-    src_dir = r'D:\Code\GasTank\examples\example9'
+    src_dir = r'D:\Code\GasTank\examples\example6'
     src_index_begin = 1  # the name of the file must be incremented from left to right
     src_index_end = 2
 

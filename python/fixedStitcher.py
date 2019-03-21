@@ -138,7 +138,7 @@ def optimize_combined_images(img1, warped_img, p1, p2, stitched_img):  # p: [[x_
 
 if __name__ == "__main__":
     # read source picture
-    src_dir = r'D:\Code\GasTank\examples\example9'
+    src_dir = r'D:\Code\GasTank\examples\example6'
     src_index_begin = 1  # the name of the file must be incremented from left to right
     src_index_end = 2
 
@@ -150,6 +150,7 @@ if __name__ == "__main__":
     print("read source image(width=%d, height=%d)" % (w1, h1))
     ws1 = int(w1 * 720 / h1)
     src1 = cv2.resize(src1, (ws1, 720))  # scale
+    cv2.imshow("src1", src1)
     
     for idx in range(src_index_begin + 1, src_index_end + 1):
         src2_name = str(idx) + ".jpg"
@@ -160,6 +161,7 @@ if __name__ == "__main__":
         print("read source image(width=%d, height=%d)" % (w2, h2))
         ws2 = int(w2 * 720 / h2)
         src2 = cv2.resize(src2, (ws2, 720))
+        cv2.imshow("src2", src2)
 
         print("****** begin stitch......\n")
         # <idx>_h_matrix.txt store the homography matrix witch transform idx to idx-1
