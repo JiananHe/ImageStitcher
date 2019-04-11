@@ -107,7 +107,7 @@ bool try_cuda = false;
 double work_megapix = 0.6;
 double seam_megapix = 0.1;
 double compose_megapix = -1;
-float conf_thresh = 0.3;
+float conf_thresh = 1.0; 
 string features_type = "surf";
 string matcher_type = "homography";
 string estimator_type = "homography";
@@ -478,7 +478,7 @@ int detailedStitching(vector<String> img_names, int num_images)
 	else
 		matcher = makePtr<BestOf2NearestRangeMatcher>(range_width, try_cuda, match_conf);
 
-	matcher = makePtr<BestOf2NearestMatcher>(try_cuda, match_conf);
+	matcher = makePtr<AffineBestOf2NearestMatcher>(try_cuda, match_conf);
 	(*matcher)(features, pairwise_matches);
 
 
@@ -519,21 +519,27 @@ int detailedStitching(vector<String> img_names, int num_images)
 	}
 
 	//draw matches
-	/*for (int i = 0; i < pairwise_matches.size(); ++i)
+	if (show_process)
 	{
-		int src_img_idx = pairwise_matches[i].src_img_idx;
-		int dst_img_idx = pairwise_matches[i].dst_img_idx;
-		if (src_img_idx == dst_img_idx)
-			continue;
+		for (int i = 0; i < pairwise_matches.size(); ++i)
+		{
+			int src_img_idx = pairwise_matches[i].src_img_idx;
+			int dst_img_idx = pairwise_matches[i].dst_img_idx;
+			if (src_img_idx == dst_img_idx)
+				continue;
 
-		Mat src_img = imgs_for_features[src_img_idx].clone();
-		Mat dst_img = imgs_for_features[dst_img_idx].clone();
-		Mat show_img;
-		hconcat(src_img, dst_img, show_img);
-		drawMatches(src_img, features[src_img_idx].keypoints, dst_img, features[dst_img_idx].keypoints, pairwise_matches[i].matches, show_img);
-		imshow("matches", show_img);
-		waitKey(0);
-	}*/
+			Mat src_img = imgs_for_features[src_img_idx].clone();
+			Mat dst_img = imgs_for_features[dst_img_idx].clone();
+			int rows = src_img.rows > dst_img.rows ? src_img.rows : dst_img.rows;
+
+			Mat show_img = Mat::zeros(rows, src_img.cols + dst_img.cols, dst_img.type());
+			src_img.copyTo(show_img(Rect(0, 0, src_img.cols, src_img.rows)));
+			dst_img.copyTo(show_img(Rect(src_img.cols, 0, dst_img.cols, dst_img.rows)));
+			drawMatches(src_img, features[src_img_idx].keypoints, dst_img, features[dst_img_idx].keypoints, pairwise_matches[i].matches, show_img);
+			imshow("matches", show_img);
+			waitKey(0);
+		}
+	}
 
 	Ptr<Estimator> estimator;
 	if (estimator_type == "affine")
@@ -884,7 +890,8 @@ int main(int argc, char* argv[])
 
 	if (one_batch)
 	{
-		detailedStitching(all_img_names, num_all_images);
+		if(detailedStitching(all_img_names, num_all_images))
+			return -1;
 	}
 	else
 	{
@@ -892,9 +899,12 @@ int main(int argc, char* argv[])
 		vector<String> img_names;
 		int c = 2;
 		img_names.assign(all_img_names.begin(), all_img_names.begin() + c);
-		while (c < num_all_images)
+		while (true)
 		{
-			detailedStitching(img_names, 2);
+			if (detailedStitching(img_names, 2))
+				return -1;
+			if (c >= num_all_images)
+				break;
 			img_names.clear();
 			img_names.push_back(result_temp_name);
 			img_names.push_back(all_img_names.at(c++));
@@ -903,7 +913,10 @@ int main(int argc, char* argv[])
 
 	Mat result_img = imread(result_temp_name);
 	if (show_process)
+	{
 		imshow("result", result_img);
+		waitKey(0);
+	}
 	imwrite(result_name, result_img);
 
 	return 0;
