@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 2.8)
+project( ImageStitcherDetails )
+find_package( OpenCV REQUIRED )
+include_directories( ${OpenCV_INCLUDE_DIRS} )
+add_executable( ImageStitcherDetails stitching_details.cpp )
+target_link_libraries( ImageStitcherDetails ${OpenCV_LIBS} )
