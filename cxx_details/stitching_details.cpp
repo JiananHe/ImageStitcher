@@ -71,12 +71,12 @@ static void printUsage()
 {
 	cout <<
 		"Rotation model images stitcher.\n\n"
-		"stitching_detailed img1 img2 [...imgN] [flags]\n\n"
+		"ImageStitcherDetails.exe img1 img2 [...imgN] [flags]\n\n"
 		"Flags:\n"
-		"  --one_batch (yes|no)"
-		"	   Whether to Stitch all images in one batch. The default value is no.\n"
-		"	   If yes, then stitch all images in one batch, otherwise stitch two images in every batch."
-		"	   The images must be read in order if one_batch is no."
+		"  --one_batch (yes|no)\n"
+		"      Whether to Stitch all images in one batch. The default value is no.\n"
+		"      If yes, then stitch all images in one batch, otherwise stitch two images in every batch.\n"
+		"      The images must be read in order if one_batch is no.\n"
 		"  --try_cuda (yes|no)\n"
 		"      Try to use CUDA. The default value is 'no'. All default values\n"
 		"      are for CPU mode.\n"
@@ -86,9 +86,6 @@ static void printUsage()
 		"      Matcher used for pairwise image matching.\n"
 		"  --match_conf <float>\n"
 		"      Confidence for feature matching step. The default is 0.65 for surf and 0.3 for orb.\n"
-		"  --conf_thresh <float>\n"
-		"      Threshold for two images are from the same panorama confidence.\n"
-		"      The default is 1.0.\n"
 		"  --show_process (yes|no)\n"
 		"       Show the features found in images and the features match result, The default value is 'no'.\n"
 		"  --save_graph <file_name>\n"
@@ -109,7 +106,7 @@ double seam_megapix = 0.1;
 double compose_megapix = -1;
 float conf_thresh = 1.0; 
 string features_type = "surf";
-string matcher_type = "homography";
+string matcher_type = "affine";
 string estimator_type = "homography";
 string ba_cost_func = "ray";
 string ba_refine_mask = "xxxxx";
@@ -427,14 +424,27 @@ int detailedStitching(vector<String> img_names, int num_images)
 			LOGLN("Can't open image " << img_names[i]);
 			return -1;
 		}
-		work_scale = min(1.0, sqrt(work_megapix * 1e6 / full_img.size().area()));
-		is_work_scale_set = true;
-		resize(full_img, img, Size(), work_scale, work_scale, INTER_LINEAR_EXACT);
-
-		seam_scale = min(1.0, sqrt(seam_megapix * 1e6 / full_img.size().area()));
-		seam_work_aspect = seam_scale / work_scale;
-		is_seam_scale_set = true;
-
+		if (work_megapix < 0)
+		{
+			img = full_img;
+			work_scale = 1;
+			is_work_scale_set = true;
+		}
+		else
+		{
+			if (!is_work_scale_set)
+			{
+				work_scale = min(1.0, sqrt(work_megapix * 1e6 / full_img.size().area()));
+				is_work_scale_set = true;
+			}
+			resize(full_img, img, Size(), work_scale, work_scale, INTER_LINEAR_EXACT);
+		}
+		if (!is_seam_scale_set)
+		{
+			seam_scale = min(1.0, sqrt(seam_megapix * 1e6 / full_img.size().area()));
+			seam_work_aspect = seam_scale / work_scale; 
+			is_seam_scale_set = true;
+		}
 
 		(*finder)(img, features[i]);
 		imgs_for_features[i] = img.clone();
@@ -448,16 +458,13 @@ int detailedStitching(vector<String> img_names, int num_images)
 	//draw features in img
 	if (show_process)
 	{
-		if (show_process)
+		for (int i = 0; i < num_images; ++i)
 		{
-			for (int i = 0; i < num_images; ++i)
-			{
-				Mat features_show = imgs_for_features[i].clone();
-				drawKeypoints(imgs_for_features[i], features[i].keypoints, features_show);
-				imshow("features", features_show);
-				waitKey(0);
-				features_show.release();
-			}
+			Mat features_show = imgs_for_features[i].clone();
+			drawKeypoints(imgs_for_features[i], features[i].keypoints, features_show);
+			imshow("features", features_show);
+			waitKey(0);
+			features_show.release();
 		}
 	}
 	
@@ -478,7 +485,6 @@ int detailedStitching(vector<String> img_names, int num_images)
 	else
 		matcher = makePtr<BestOf2NearestRangeMatcher>(range_width, try_cuda, match_conf);
 
-	matcher = makePtr<AffineBestOf2NearestMatcher>(try_cuda, match_conf);
 	(*matcher)(features, pairwise_matches);
 
 
